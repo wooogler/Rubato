@@ -4,24 +4,31 @@ import "./App.css";
 
 const socket = io("http://100.64.233.45:5000", {
   transports: ["websocket"],
-  extraHeaders: {
-    "Access-Control-Allow-Origin": "http://localhost:5173",
-  },
 });
 
 function App() {
   const [status, setStatus] = useState("");
-  const [height, setHeight] = useState<number | null>(null);
+  const [height, setHeight] = useState<number>(0);
+  const [targetHeight, setTargetHeight] = useState<number | string>("");
+  const [error, setError] = useState<string>("");
 
   useEffect(() => {
     socket.on("response", (data) => {
-      setStatus(`Action: ${data.action}, Result: ${data.result}`);
+      console.log("Received response:", data);
+      if (data.action?.action === "MOVE_TO_HEIGHT") {
+        setStatus(
+          `Action: ${data.action.action}, Result: Moving to height ${data.action.height}`
+        );
+      } else {
+        setStatus(`Action: ${data.action}, Result: ${data.result}`);
+      }
       if (data.height) {
         setHeight(data.height);
       }
     });
 
     socket.on("height_update", (data) => {
+      console.log("Received height_update:", data);
       setHeight(data.height);
     });
 
@@ -31,8 +38,24 @@ function App() {
     };
   }, []);
 
-  const sendControlCommand = (command: string) => {
-    socket.emit("control", command);
+  const sendControlCommand = (command: string, heightValue?: number) => {
+    if (command === "MOVE_TO_HEIGHT" && heightValue !== undefined) {
+      socket.emit("control", { action: command, height: heightValue });
+    } else {
+      socket.emit("control", command);
+    }
+  };
+
+  const handleHeightChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    const numberValue = Number(value);
+    if (!isNaN(numberValue) && numberValue >= 25.5 && numberValue <= 51.0) {
+      setTargetHeight(numberValue);
+      setError("");
+    } else {
+      setTargetHeight(value);
+      setError("Please enter a number between 25.5 and 51.0.");
+    }
   };
 
   return (
@@ -42,9 +65,29 @@ function App() {
         <button onClick={() => sendControlCommand("UP")}>Move Up</button>
         <button onClick={() => sendControlCommand("DOWN")}>Move Down</button>
         <button onClick={() => sendControlCommand("STOP")}>Stop</button>
+        <button onClick={() => sendControlCommand("GET_HEIGHT")}>
+          Get Height
+        </button>
+        <div>
+          <input
+            type="text"
+            value={targetHeight}
+            onChange={handleHeightChange}
+            placeholder="Enter target height (inch)"
+          />
+          <button
+            onClick={() =>
+              typeof targetHeight === "number" &&
+              sendControlCommand("MOVE_TO_HEIGHT", targetHeight)
+            }
+          >
+            Move to Height
+          </button>
+          {error && <p className="error">{error}</p>}
+        </div>
         <div className="status">
           <p>{status}</p>
-          {height !== null && <p>Current Height: {height} cm</p>}
+          <p>Current Height: {height} inch</p>
         </div>
       </header>
     </div>
