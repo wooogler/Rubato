@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import io from "socket.io-client";
 import "./App.css";
 
-const socket = io("http://100.64.233.45:5000", {
+const socket = io("http://100.64.226.241:5000", {
   transports: ["websocket"],
 });
 
